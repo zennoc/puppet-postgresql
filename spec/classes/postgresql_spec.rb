@@ -13,11 +13,6 @@ describe 'postgresql' do
     it { should contain_file('postgresql.conf').with_ensure('present') }
   end
 
-  describe 'Test installation of a specific version' do
-    let(:params) { {:version => '1.0.42' } }
-    it { should contain_package('postgresql').with_ensure('1.0.42') }
-  end
-
   describe 'Test standard installation with monitoring and firewalling' do
     let(:params) { {:monitor => true , :firewall => true, :port => '42', :protocol => 'tcp' } }
 
@@ -126,11 +121,8 @@ describe 'postgresql' do
     end
   end
 
-  describe 'Test service autorestart', :broken => true do
-    it 'should automatically restart the service, by default' do
-      content = catalogue.resource('file', 'postgresql.conf').send(:parameters)[:notify]
-      content.should == 'Service[postgresql]{:name=>"postgresql"}'
-    end
+  describe 'Test service autorestart' do
+    it { should contain_file('postgresql.conf').with_notify('Service[postgresql]') }
   end
 
   describe 'Test service autorestart' do

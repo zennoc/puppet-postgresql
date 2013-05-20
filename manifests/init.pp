@@ -6,11 +6,41 @@
 # == Parameters
 #
 # Module's specific parameters
-#  [*initdbcommand*]
+#
+# [*use_postgresql_repo*]
+#   Define if you want to use Official PostgreSQL repositories
+#   to install packages. Default: false (OS default package is used)
+#   Note that when [*use_postgresql_repo*] is set to true AND [*version*]
+#   is set to a specific version, this version takes precedence, no matter
+#   if the version in the postgresql repository is newer than the one you
+#   set in [*version*]
+#
+# [*install_prerequisites*]
+#   Set to false if you don't want install this module's prerequisites.
+#   They include the addition of PostgreSQL repos (when use_postgresql_repo=true)
+#   Via Example42 apt or yum modules.
+#
+# [*initdbcommand*]
 #    The command to use to inizialize the database
 #
-#  [*configfilehba*]
+# [*config_file_hba*]
 #    Location of the hba file
+#
+# [*source_hba*]
+#   Sets the content of source parameter for the hba configuration file
+#   Note that single lines of hba file can be managed also (and alternatively)
+#   by postgresql::hba
+#
+# [*template_hba*]
+#   Sets the path to the template to use as content for hba configuration file
+#   If defined, postgresql hba config file has: content => content("$template_hba")
+#   Note source_hba and template_hba parameters are mutually exclusive: don't use both
+#
+# [*template_hba_header*]
+#   Path to the header's template when using concat
+#
+# [*template_hba_footer*]
+#   Path to the footer's template when using concat
 #
 # Standard class parameters
 # Define the general class behaviour and customizations
@@ -57,6 +87,8 @@
 #   Default: present. Can be 'latest' or a specific version number.
 #   Note that if the argument absent (see below) is set to true, the
 #   package is removed, whatever the value of version parameter.
+#   Please check [*use_postgresql_repo*] to see the expected behaviour when
+#   both set.
 #
 # [*absent*]
 #   Set to 'true' to remove package(s) installed by module
@@ -212,50 +244,58 @@
 #   Alessandro Franceschi <al@lab42.it/>
 #
 class postgresql (
-  $initdbcommand       = params_lookup( 'initdbcommand' ),
-  $configfilehba       = params_lookup( 'configfilehba' ),
-  $my_class            = params_lookup( 'my_class' ),
-  $source              = params_lookup( 'source' ),
-  $source_dir          = params_lookup( 'source_dir' ),
-  $source_dir_purge    = params_lookup( 'source_dir_purge' ),
-  $template            = params_lookup( 'template' ),
-  $service_autorestart = params_lookup( 'service_autorestart' , 'global' ),
-  $options             = params_lookup( 'options' ),
-  $version             = params_lookup( 'version' ),
-  $absent              = params_lookup( 'absent' ),
-  $disable             = params_lookup( 'disable' ),
-  $disableboot         = params_lookup( 'disableboot' ),
-  $monitor             = params_lookup( 'monitor' , 'global' ),
-  $monitor_tool        = params_lookup( 'monitor_tool' , 'global' ),
-  $monitor_target      = params_lookup( 'monitor_target' , 'global' ),
-  $puppi               = params_lookup( 'puppi' , 'global' ),
-  $puppi_helper        = params_lookup( 'puppi_helper' , 'global' ),
-  $firewall            = params_lookup( 'firewall' , 'global' ),
-  $firewall_tool       = params_lookup( 'firewall_tool' , 'global' ),
-  $firewall_src        = params_lookup( 'firewall_src' , 'global' ),
-  $firewall_dst        = params_lookup( 'firewall_dst' , 'global' ),
-  $debug               = params_lookup( 'debug' , 'global' ),
-  $audit_only          = params_lookup( 'audit_only' , 'global' ),
-  $package             = params_lookup( 'package' ),
-  $service             = params_lookup( 'service' ),
-  $service_status      = params_lookup( 'service_status' ),
-  $process             = params_lookup( 'process' ),
-  $process_args        = params_lookup( 'process_args' ),
-  $process_user        = params_lookup( 'process_user' ),
-  $config_dir          = params_lookup( 'config_dir' ),
-  $config_file         = params_lookup( 'config_file' ),
-  $config_file_mode    = params_lookup( 'config_file_mode' ),
-  $config_file_owner   = params_lookup( 'config_file_owner' ),
-  $config_file_group   = params_lookup( 'config_file_group' ),
-  $config_file_init    = params_lookup( 'config_file_init' ),
-  $pid_file            = params_lookup( 'pid_file' ),
-  $data_dir            = params_lookup( 'data_dir' ),
-  $log_dir             = params_lookup( 'log_dir' ),
-  $log_file            = params_lookup( 'log_file' ),
-  $port                = params_lookup( 'port' ),
-  $protocol            = params_lookup( 'protocol' )
+  $use_postgresql_repo   = params_lookup( 'use_postgresql_repo' ),
+  $install_prerequisites = params_lookup( 'install_prerequisites' ),
+  $initdbcommand         = params_lookup( 'initdbcommand' ),
+  $config_file_hba       = params_lookup( 'config_file_hba' ),
+  $source_hba            = params_lookup( 'source_hba' ),
+  $template_hba          = params_lookup( 'template_hba' ),
+  $template_hba_header   = params_lookup( 'template_hba_header' ),
+  $template_hba_footer   = params_lookup( 'template_hba_footer' ),
+  $my_class              = params_lookup( 'my_class' ),
+  $source                = params_lookup( 'source' ),
+  $source_dir            = params_lookup( 'source_dir' ),
+  $source_dir_purge      = params_lookup( 'source_dir_purge' ),
+  $template              = params_lookup( 'template' ),
+  $service_autorestart   = params_lookup( 'service_autorestart' , 'global' ),
+  $options               = params_lookup( 'options' ),
+  $version               = params_lookup( 'version' ),
+  $absent                = params_lookup( 'absent' ),
+  $disable               = params_lookup( 'disable' ),
+  $disableboot           = params_lookup( 'disableboot' ),
+  $monitor               = params_lookup( 'monitor' , 'global' ),
+  $monitor_tool          = params_lookup( 'monitor_tool' , 'global' ),
+  $monitor_target        = params_lookup( 'monitor_target' , 'global' ),
+  $puppi                 = params_lookup( 'puppi' , 'global' ),
+  $puppi_helper          = params_lookup( 'puppi_helper' , 'global' ),
+  $firewall              = params_lookup( 'firewall' , 'global' ),
+  $firewall_tool         = params_lookup( 'firewall_tool' , 'global' ),
+  $firewall_src          = params_lookup( 'firewall_src' , 'global' ),
+  $firewall_dst          = params_lookup( 'firewall_dst' , 'global' ),
+  $debug                 = params_lookup( 'debug' , 'global' ),
+  $audit_only            = params_lookup( 'audit_only' , 'global' ),
+  $package               = params_lookup( 'package' ),
+  $service               = params_lookup( 'service' ),
+  $service_status        = params_lookup( 'service_status' ),
+  $process               = params_lookup( 'process' ),
+  $process_args          = params_lookup( 'process_args' ),
+  $process_user          = params_lookup( 'process_user' ),
+  $config_dir            = params_lookup( 'config_dir' ),
+  $config_file           = params_lookup( 'config_file' ),
+  $config_file_mode      = params_lookup( 'config_file_mode' ),
+  $config_file_owner     = params_lookup( 'config_file_owner' ),
+  $config_file_group     = params_lookup( 'config_file_group' ),
+  $config_file_init      = params_lookup( 'config_file_init' ),
+  $pid_file              = params_lookup( 'pid_file' ),
+  $data_dir              = params_lookup( 'data_dir' ),
+  $log_dir               = params_lookup( 'log_dir' ),
+  $log_file              = params_lookup( 'log_file' ),
+  $port                  = params_lookup( 'port' ),
+  $protocol              = params_lookup( 'protocol' )
   ) inherits postgresql::params {
 
+  $bool_use_postgresql_repo=any2bool($use_postgresql_repo)
+  $bool_install_prerequisites = any2bool($install_prerequisites)
   $bool_source_dir_purge=any2bool($source_dir_purge)
   $bool_service_autorestart=any2bool($service_autorestart)
   $bool_absent=any2bool($absent)
@@ -270,7 +310,7 @@ class postgresql (
   ### Definition of some variables used in the module
   $manage_package = $postgresql::bool_absent ? {
     true  => 'absent',
-    false => $postgresql::version,
+    false => 'present',
   }
 
   $manage_service_enable = $postgresql::bool_disableboot ? {
@@ -337,15 +377,130 @@ class postgresql (
     default   => template($postgresql::template),
   }
 
+  $manage_file_source_hba = $postgresql::source_hba ? {
+    ''        => undef,
+    default   => $postgresql::source_hba,
+  }
+
+  $manage_file_content_hba = $postgresql::template_hba ? {
+    ''        => undef,
+    default   => template($postgresql::template_hba),
+  }
+
+### Calculation of internal variables according to user input
+  $real_version = $postgresql::version ? {
+    ''      => $postgresql::bool_use_postgresql_repo ? {
+      true  => '9.2',
+      false => $::operatingsystem ? {
+        'Debian'                        => $::lsbmajdistrelease ? {
+          7       => '9.1',
+          default => '8.4',
+        },
+        'Ubuntu'                        => $::lsbmajdistrelease ? {
+          12      => '9.1',
+          13      => '9.1',
+          default => '8.4',
+        },
+        'Mint'                          => $::lsbmajdistrelase ? {
+          13      => '9.1',
+          14      => '9.1',
+          15      => '9.1',
+          default => '8.4',
+        },
+        /(?i:RedHat|Centos|Scientific)/ => '',
+        default                         => '8.4',
+      },
+    },
+    default => $postgresql::version,
+  }
+  $real_version_short = regsubst($real_version,'\.','')
+
+  $real_package = $postgresql::package ? {
+    ''          => $::operatingsystem ? {
+      /(?i:Debian|Ubuntu|Mint)/       => "postgresql-${real_version}",
+      /(?i:RedHat|Centos|Scientific)/ => "postgresql${real_version_short}-server",
+      default                         => "postgresql${real_version}",
+    },
+    default     => $postgresql::package,
+  }
+
+  $real_service = $postgresql::service ? {
+    ''          => $::operatingsystem ? {
+      /(?i:RedHat|Centos|Scientific)/ => $postgresql::bool_use_postgresql_repo ? {
+        true  => "postgresql-${real_version}",
+        false => 'postgresql',
+      },
+      default                         => 'postgresql',
+    },
+    default     => $postgresql::service,
+  }
+
+  $real_initdbcommand = $postgresql::initdbcommand ? {
+    ''     => "service ${postgresql::real_service} initdb",
+    default => $postgresql::initdbcommand,
+  }
+
+  $real_config_dir = $postgresql::config_dir ? {
+    ''          => $::operatingsystem ? {
+      /(?i:Debian|Ubuntu|Mint)/       => "/etc/postgresql/${real_version}/main",
+      /(?i:RedHat|Centos|Scientific)/ => "/var/lib/pgsql/${real_version}/data",
+      default                         => '/var/lib/pgsql/data',
+    },
+    default     => $postgresql::config_dir,
+  }
+
+  $real_config_file = "${real_config_dir}/postgresql.conf"
+
+  $real_config_file_hba = "${real_config_dir}/pg_hba.conf"
+
+  $real_pid_file = $postgresql::pid_file ? {
+    ''          => $::operatingsystem ? {
+      /(?i:Debian|Ubuntu|Mint)/ => "/var/run/postgresql/${real_version}-main.pid",
+      default                   => "/var/lib/pgsql/data/${real_version}/postmaster.pid",
+    },
+    default     => $postgresql::pid_file,
+  }
+
+  $real_data_dir = $postgresql::data_dir ? {
+    ''          => $::operatingsystem ? {
+      /(?i:Debian|Ubuntu|Mint)/ => "/var/lib/postgresql/${real_version}/main",
+      default                   => "/var/lib/pgsql/${real_version}/data",
+    },
+    default     => $postgresql::data_dir,
+  }
+
+  $real_log_dir = $postgresql::log_dir ? {
+    ''        => $::operatingsystem ? {
+      /(?i:Debian|Ubuntu|Mint)/       => '/var/log/postgresql',
+      /(?i:RedHat|Centos|Scientific)/ => "${postgresql::real_data_dir}/pg_log",
+      default                         => "${postgresql::real_data_dir}/pg_log",
+    },
+    default   => $postgresql::log_file,
+  }
+
+  $real_log_file = $postgresql::log_file ? {
+    ''        => $::operatingsystem ? {
+      /(?i:Debian|Ubuntu|Mint)/       => "${real_log_dir}/postgresql-${real_version}-main.log",
+      /(?i:RedHat|Centos|Scientific)/ => "${real_log_dir}/postgresql*.log",
+      default                         => "${real_log_dir}/postgresql*.log",
+    },
+    default   => $postgresql::log_file,
+  }
+
   ### Managed resources
+
+  if $postgresql::bool_install_prerequisites {
+    require postgresql::prerequisites
+  }
+
   package { 'postgresql':
     ensure => $postgresql::manage_package,
-    name   => $postgresql::package,
+    name   => $postgresql::real_package,
   }
 
   service { 'postgresql':
     ensure     => $postgresql::manage_service_ensure,
-    name       => $postgresql::service,
+    name       => $postgresql::real_service,
     enable     => $postgresql::manage_service_enable,
     hasstatus  => $postgresql::service_status,
     pattern    => $postgresql::process,
@@ -354,7 +509,7 @@ class postgresql (
 
   file { 'postgresql.conf':
     ensure  => $postgresql::manage_file,
-    path    => $postgresql::config_file,
+    path    => $postgresql::real_config_file,
     mode    => $postgresql::config_file_mode,
     owner   => $postgresql::config_file_owner,
     group   => $postgresql::config_file_group,
@@ -366,11 +521,28 @@ class postgresql (
     audit   => $postgresql::manage_audit,
   }
 
+  if $postgresql::source_hba or $postgresql::template_hba {
+    file { 'postgresql_hba.conf':
+      ensure  => $postgresql::manage_file,
+      path    => $postgresql::real_config_file_hba,
+      mode    => $postgresql::config_file_mode,
+      owner   => $postgresql::config_file_owner,
+      group   => $postgresql::config_file_group,
+      require => Package['postgresql'],
+      notify  => $postgresql::manage_service_autorestart,
+      source  => $postgresql::manage_file_source_hba,
+      content => $postgresql::manage_file_content_hba,
+      replace => $postgresql::manage_file_replace,
+      audit   => $postgresql::manage_audit,
+    }
+  }
+
+
   # The whole postgresql configuration directory can be recursively overriden
   if $postgresql::source_dir {
     file { 'postgresql.dir':
       ensure  => directory,
-      path    => $postgresql::config_dir,
+      path    => $postgresql::real_config_dir,
       require => Package['postgresql'],
       notify  => $postgresql::manage_service_autorestart,
       source  => $postgresql::source_dir,
@@ -411,7 +583,7 @@ class postgresql (
     monitor::process { 'postgresql_process':
       process  => $postgresql::process,
       service  => $postgresql::service,
-      pidfile  => $postgresql::pid_file,
+      pidfile  => $postgresql::real_pid_file,
       user     => $postgresql::process_user,
       argument => $postgresql::process_args,
       tool     => $postgresql::monitor_tool,
