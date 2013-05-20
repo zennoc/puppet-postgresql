@@ -14,39 +14,28 @@
 #
 class postgresql::params {
 
+  $use_postgresql_repo = false
+  $install_prerequisites = true
+
   # Calculate OS version (without using lsb facts)
   $ossplit=split($::operatingsystemrelease, '[.]')
   $osver=$ossplit[0]
 
   ### Module's specific parameters
-  $initdbcommand = $::operatingsystem ? {
-    default => 'service postgresql initdb',
-  }
+  $initdbcommand = ''
 
-  $configfilehba = $::operatingsystem ? {
-    /(?i:Debian|Ubuntu|Mint)/ => '/etc/postgresql/8.4/main/pg_hba.conf',
-    default => '/var/lib/pgsql/data/pg_hba.conf',
-  }
+  $config_file_hba = ''
+
+  $source_hba = ''
+  $template_hba = ''
+  $template_hba_header = 'postgresql/concat_hba_header.erb'
+  $template_hba_footer = 'postgresql/concat_hba_footer.erb'
 
   ### Application related parameters
 
-  $package = $::operatingsystem ? {
-    /(?i:Debian|Ubuntu|Mint)/       => 'postgresql-8.4',
-    /(?i:RedHat|Centos|Scientific)/ => $osver ? {
-      5       => 'postgresql84-server',
-      default => 'postgresql-server',
-    },
-    default                         => 'postgresql',
-  }
+  $package = ''
 
-  $service = $::operatingsystem ? {
-    /(?i:Debian|Mint)/        => 'postgresql',
-    /(?i:Ubuntu)/             => $::operatingsystemrelease ? {
-      '12.04' => 'postgresql',
-      default => 'postgresql-8.4',
-    },
-    default                   => 'postgresql',
-  }
+  $service = ''
 
   $service_status = $::operatingsystem ? {
     default => true,
@@ -65,15 +54,9 @@ class postgresql::params {
     default => 'postgres',
   }
 
-  $config_dir = $::operatingsystem ? {
-    /(?i:Debian|Ubuntu|Mint)/ => '/etc/postgresql/8.4/main',
-    default                   => '/var/lib/pgsql/data',
-  }
+  $config_dir = ''
 
-  $config_file = $::operatingsystem ? {
-    /(?i:Debian|Ubuntu|Mint)/ => '/etc/postgresql/8.4/main/postgresql.conf',
-    default                   => '/var/lib/pgsql/data/postgresql.conf',
-  }
+  $config_file = ''
 
   $config_file_mode = $::operatingsystem ? {
     default => '0600',
@@ -92,26 +75,13 @@ class postgresql::params {
     default                   => '/etc/sysconfig/pgsql',
   }
 
-  $pid_file = $::operatingsystem ? {
-    /(?i:Debian|Ubuntu|Mint)/ => '/var/run/postgresql/8.4-main.pid',
-    default                   => '/var/lib/pgsql/data/postmaster.pid',
-  }
+  $pid_file = ''
 
-  $data_dir = $::operatingsystem ? {
-    /(?i:Debian|Ubuntu|Mint)/ => '/var/lib/postgresql/8.4/main',
-    default                   => '/var/lib/pgsql',
-  }
+  $data_dir = ''
 
-  $log_dir = $::operatingsystem ? {
-    /(?i:RedHat|Centos|Scientific)/ => '/var/lib/pgsql/data/pg_log',
-    default                         => '/var/log/postgresql',
-  }
+  $log_dir = ''
 
-  $log_file = $::operatingsystem ? {
-    /(?i:Debian|Ubuntu|Mint)/       => '/var/log/postgresql/postgresql-8.4-main.log',
-    /(?i:RedHat|Centos|Scientific)/ => '/var/lib/pgsql/data/pg_log/postgresql*.log',
-    default                         => '/var/lib/pgsql/data/pg_log/postgresql*.log',
-  }
+  $log_file = ''
 
   $port = '5432'
   $protocol = 'tcp'
@@ -124,7 +94,7 @@ class postgresql::params {
   $template = ''
   $options = ''
   $service_autorestart = true
-  $version = 'present'
+  $version = ''
   $absent = false
   $disable = false
   $disableboot = false
