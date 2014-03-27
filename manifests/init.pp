@@ -252,6 +252,8 @@ class postgresql (
   $template_hba          = params_lookup( 'template_hba' ),
   $template_hba_header   = params_lookup( 'template_hba_header' ),
   $template_hba_footer   = params_lookup( 'template_hba_footer' ),
+  $template_ident        = params_lookup( 'template_ident' ),
+  $template_ident_header = params_lookup( 'template_ident_header' ),
   $my_class              = params_lookup( 'my_class' ),
   $source                = params_lookup( 'source' ),
   $source_dir            = params_lookup( 'source_dir' ),
@@ -453,10 +455,12 @@ class postgresql (
 
   $real_config_file_hba = "${real_config_dir}/pg_hba.conf"
 
+  $real_config_file_ident = "${real_config_dir}/pg_ident.conf"
+
   $real_pid_file = $postgresql::pid_file ? {
     ''          => $::operatingsystem ? {
       /(?i:Debian|Ubuntu|Mint)/ => "/var/run/postgresql/${real_version}-main.pid",
-      default                   => "/var/lib/pgsql/data/${real_version}/postmaster.pid",
+      default                   => "/var/lib/pgsql/${real_version}/data/postmaster.pid",
     },
     default     => $postgresql::pid_file,
   }
@@ -475,7 +479,7 @@ class postgresql (
       /(?i:RedHat|Centos|Scientific)/ => "${postgresql::real_data_dir}/pg_log",
       default                         => "${postgresql::real_data_dir}/pg_log",
     },
-    default   => $postgresql::log_file,
+    default   => $postgresql::log_dir,
   }
 
   $real_log_file = $postgresql::log_file ? {
@@ -582,7 +586,7 @@ class postgresql (
     }
     monitor::process { 'postgresql_process':
       process  => $postgresql::process,
-      service  => $postgresql::service,
+      service  => $postgresql::real_service,
       pidfile  => $postgresql::real_pid_file,
       user     => $postgresql::process_user,
       argument => $postgresql::process_args,
